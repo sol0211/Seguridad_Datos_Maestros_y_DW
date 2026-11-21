@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La víspera de AndesCargo</title>
+<!--
+  Caso de práctica · Unidades VII y VIII, clases 11 y 12.
+  AndesCargo, otro caso. Diez decisiones.
+  Cada decisión correcta encaja una pieza. Archivo único, sin internet.
+-->
+<style>
+  :root {
+    --ink: #262626;
+    --muted: #595959;
+    --navy: #333f4f;
+    --green: #70ad47;
+    --green-d: #548235;
+    --green-s: #c6e0b4;
+    --blue: #deeaf6;
+    --blue-2: #f2f7fc;
+    --line: #d5deea;
+    --bg: #f3f6fb;
+    --wrong: #b94b5c;
+    --wrong-bg: #fdecef;
+    --ok-bg: #eef6e6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: Calibri, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(900px 420px at 0% -10%, rgba(198, 224, 180, .7), transparent 60%),
+      radial-gradient(800px 420px at 100% 0%, rgba(222, 234, 246, .9), transparent 55%),
+      var(--bg);
+  }
+  button, input { font-family: inherit; }
+  #app { max-width: 1080px; margin: 0 auto; padding: 22px 20px 40px; }
+  .screen { display: none; }
+  .screen.active { display: block; animation: rise .28s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: clamp(2rem, 4vw, 2.7rem); line-height: 1.05; margin: 8px 0 8px; letter-spacing: -.02em; }
+  h2 { font-size: 1.55rem; margin: 0 0 8px; }
+  .kicker {
+    display: inline-block; margin: 0;
+    background: var(--green-s); color: var(--navy);
+    font-weight: 700; font-size: .92rem;
+    padding: 4px 12px; border-radius: 999px;
+  }
+  .lead { font-size: 1.18rem; color: var(--navy); margin: 0 0 18px; max-width: 68ch; }
+  .grid-2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; }
+  @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 18px;
+    padding: 18px 18px 16px; box-shadow: 0 8px 24px rgba(51, 63, 79, .06);
+  }
+  .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .role { background: var(--blue); border-radius: 12px; padding: 10px 12px; }
+  .role b { display: block; color: var(--navy); }
+  .role span { color: var(--muted); font-size: .92rem; }
+  ol.pasos { margin: 8px 0 0; padding-left: 1.15rem; }
+  ol.pasos li { margin: 6px 0; line-height: 1.35; }
+  .btn {
+    border: 0; border-radius: 14px; cursor: pointer; font-weight: 700;
+    padding: 14px 18px; font-size: 1.08rem;
+  }
+  .btn:focus-visible, .opt:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+  .btn-main { background: var(--green); color: #fff; box-shadow: 0 4px 0 var(--green-d); }
+  .btn-main:hover { filter: brightness(1.05); }
+  .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--green-d); }
+  .btn-sec { background: var(--blue); color: var(--navy); }
+  .btn-sec:hover { filter: brightness(.98); }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+  .top {
+    display: flex; justify-content: space-between; gap: 12px; align-items: flex-end;
+    margin-bottom: 12px;
+  }
+  .rail { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 8px 0 14px; }
+  @media (max-width: 720px) { .rail { grid-template-columns: repeat(2, 1fr); } }
+  .slot {
+    min-height: 64px; border-radius: 14px; border: 2px dashed #b7c3d4;
+    background: rgba(255,255,255,.55); padding: 8px 8px 10px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .slot .n { font-size: .75rem; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+  .slot .t { font-weight: 700; color: #8aa; font-size: .95rem; }
+  .slot.on {
+    border-style: solid; border-color: var(--green); background: var(--ok-bg);
+    animation: snap .35s ease;
+  }
+  .slot.on .n, .slot.on .t { color: var(--green-d); }
+  .slot.now { border-color: var(--navy); background: #fff; }
+  .slot.now .t { color: var(--navy); }
+  @keyframes snap { from { transform: scale(.92); } to { transform: none; } }
+  .scene { font-size: 1.16rem; line-height: 1.45; margin: 0 0 12px; }
+  .voz {
+    background: var(--green-s); border-radius: 12px; padding: 10px 12px; margin: 0 0 14px;
+    color: var(--navy); font-weight: 700;
+  }
+  .pregunta { font-size: 1.28rem; margin: 0 0 14px; }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 800px) { .opts { grid-template-columns: 1fr; } }
+  .opt {
+    text-align: left; border: 2px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 16px; padding: 14px 14px 14px 46px; min-height: 92px;
+    font-size: 1.02rem; line-height: 1.35; cursor: pointer; position: relative;
+  }
+  .opt:hover:not([disabled]) { border-color: var(--green); }
+  .opt .key {
+    position: absolute; left: 12px; top: 12px; width: 26px; height: 26px; border-radius: 8px;
+    background: var(--navy); color: #fff; font-weight: 700; display: grid; place-items: center;
+    font-size: .9rem;
+  }
+  .opt.bad { border-color: var(--wrong); background: var(--wrong-bg); }
+  .opt.good { border-color: var(--green-d); background: var(--ok-bg); }
+  .opt.dim { opacity: .38; }
+  .opt[disabled] { cursor: default; }
+  .feedback { border-radius: 16px; padding: 14px 16px; margin-top: 12px; }
+  .feedback.bad { background: var(--wrong-bg); border: 1px solid #f3c2c9; }
+  .feedback.good { background: var(--ok-bg); border: 1px solid var(--green-s); }
+  .feedback h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .feedback p { margin: 0; line-height: 1.4; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .clock {
+    font-variant-numeric: tabular-nums; font-weight: 700; color: var(--navy);
+    background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px;
+  }
+  .clock.hot { color: var(--wrong); border-color: var(--wrong); }
+  .plan li { margin: 8px 0; }
+  .fix { border-left: 4px solid var(--wrong); background: #fff; border-radius: 10px; padding: 8px 12px; margin-top: 8px; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="sStart" class="screen active">
+    <p class="kicker">Otro caso · Unidades VII y VIII, clases 11 y 12</p>
+    <h1>La víspera de AndesCargo</h1>
+    <p class="lead">Miércoles 8 de julio. El jueves a las 09:00 el directorio quiere tres cifras de junio: qué rutas movieron más carga, en qué ciudad, y si los mismos clientes despachan por más de un almacén. Cada decisión correcta encaja una pieza.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Diez decisiones</h2>
+        <ol class="pasos">
+          <li>AC-01. El turno noche comparte una clave y las guías salieron por WhatsApp.</li>
+          <li>AC-02. Renata pide la cuenta bancaria de los clientes. Comercial dice que sí.</li>
+          <li>AC-03. A la 01:40 descargaron carga de alto valor. Piden callar la alerta de noche.</li>
+          <li>AC-04. Julio Campos tiene tres usuarios. Uno es la clave del turno.</li>
+          <li>AC-05. Inversiones del Sur aparece tres veces. Quieren quedarse con la que más factura.</li>
+          <li>AC-06. La misma ruta tiene tres nombres y el tipo de carga, tres escrituras.</li>
+          <li>AC-07. Piden el reporte sobre la base de despacho, a la hora de salida.</li>
+          <li>AC-08. Proponen copiar los 15 almacenes y llamar a eso data warehouse.</li>
+          <li>AC-09. Quieren el almacén de toda la empresa este fin de semana.</li>
+          <li>AC-10. El archivo ya está. Quieren cerrar las decisiones sin firma.</li>
+        </ol>
+        <div class="row">
+          <button id="btnGo" class="btn btn-main">Abrir la víspera</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Quién decide</h2>
+        <div class="roles">
+          <div class="role"><b>Pilar Huanca</b><span>DBA. Crea la vista. No abre la tabla completa.</span></div>
+          <div class="role"><b>Óscar Medina</b><span>Seguridad. Cuentas, claves, grupos y alertas.</span></div>
+          <div class="role"><b>Valeria Soto</b><span>Dueña del dato. Cliente, ruta y lo confidencial.</span></div>
+          <div class="role"><b>Joaquín Peña</b><span>Analista. Prepara el reporte y deja el origen.</span></div>
+          <div class="role"><b>Renata Díaz</b><span>Desarrolladora. Pide el acceso. No se autoriza sola.</span></div>
+          <div class="role"><b>Miguel Arce</b><span>Ejecutivo. Aprueba el acceso y el alcance.</span></div>
+        </div>
+        <p class="muted" style="margin:12px 0 0;">Diez piezas de un mismo miércoles. La siguiente aparece cuando la anterior encaja.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="sPlay" class="screen" aria-live="polite">
+    <div class="top">
+      <div>
+        <p class="kicker" id="paso">Pieza 1 de 10</p>
+        <h2 id="titulo" style="margin-top:8px;"></h2>
+      </div>
+      <div class="clock" id="clock" hidden>1:30</div>
+    </div>
+    <div class="rail" id="rail" aria-label="Piezas del plan"></div>
+    <div class="card">
+      <p class="scene" id="escena"></p>
+      <p class="voz" id="voz"></p>
+      <p class="pregunta" id="pregunta"></p>
+      <div id="faseTalk">
+        <div class="row">
+          <button id="btnTimer" class="btn btn-sec" type="button">Tiempo para decidir</button>
+          <button id="btnOpts" class="btn btn-main" type="button">Ver las salidas</button>
+        </div>
+      </div>
+      <div id="faseChoose" hidden>
+        <div class="opts" id="opts"></div>
+      </div>
+      <div id="feedback" class="feedback" hidden></div>
+      <div class="row" id="faseNext" hidden>
+        <button id="btnRetry" class="btn btn-sec" type="button" hidden>Volver a votar</button>
+        <button id="btnLock" class="btn btn-main" type="button" hidden>Encajar la pieza</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="sEnd" class="screen">
+    <p class="kicker">Plan de la víspera · AndesCargo</p>
+    <h1>Así se llega a las 09:00</h1>
+    <p class="lead">Diez decisiones para las tres cifras del jueves.</p>
+    <div class="card">
+      <ol class="plan" id="plan"></ol>
+    </div>
+    <div class="card" style="margin-top:14px;" id="boxFix">
+      <h2>Lo que este miércoles no se hace</h2>
+      <div id="fixes"></div>
+    </div>
+    <div class="row">
+      <button id="btnRestart" class="btn btn-main" type="button">Hacer la víspera de nuevo</button>
+    </div>
+  </section>
+</div>
+<script>
+const PIEZAS = [
+  {
+    corto: "AC-01",
+    titulo: "08:10 · AC-01 La clave del turno",
+    voz: "Óscar cierra la cuenta. Valeria clasifica la guía. El supervisor pide borrar el chat y seguir.",
+    escena: "El turno noche entra con una sola clave, turno.noche. Anoche alguien fotografió guías con nombre, DNI, dirección y valor declarado, y las mandó a un WhatsApp personal para que el turno de día las viera. El supervisor dice que borrar el chat alcanza, y que una clave por persona atrasaría la salida de los camiones.",
+    pregunta: "¿Borramos el chat y seguimos con la clave turno.noche?",
+    porque: "Borrar el chat no dice quién fotografió. Una clave, una persona. Óscar cierra la cuenta compartida, abre una por persona y registra que el dato salió de la empresa.",
+    opciones: [
+      { ok: true, t: "Óscar cierra la clave compartida, abre una cuenta por persona y registra que las guías salieron.", malo: "" },
+      { ok: false, t: "Se borra el chat y se deja turno.noche: así los camiones salen a tiempo.", malo: "El sistema sigue sin decir quién entró, y el dato que ya salió no queda registrado." },
+      { ok: false, t: "Se deja el grupo de WhatsApp como canal oficial del turno noche.", malo: "Una guía con DNI y valor declarado no vive en un teléfono personal. La clave sigue sin dueño." },
+      { ok: false, t: "Se espera al jueves: el reporte de rutas no necesita saber quién fotografió.", malo: "Sin rastro no hay auditoría. El jueves la cifra nace de un acceso que nadie puede explicar." }
+    ]
+  },
+  {
+    corto: "AC-02",
+    titulo: "09:00 · AC-02 La cuenta bancaria",
+    voz: "Renata pide. Comercial responde en el ticket. Miguel es quien aprueba.",
+    escena: "Falta un día para el reporte. Renata pide, en producción, la tabla completa de clientes: RUC, dirección y cuenta bancaria. Dice que sin la cuenta no puede saber quién paga tarde. Comercial escribe en el ticket: procede.",
+    pregunta: "¿Ese procede le abre a Renata la cuenta bancaria de todos los clientes?",
+    porque: "El comentario abre el pedido. No autoriza. El reporte del jueves no necesita la cuenta bancaria. Pilar crea una vista sin ese dato, y Miguel aprueba.",
+    opciones: [
+      { ok: true, t: "Pilar crea una vista sin cuenta bancaria, y Miguel aprueba ese acceso.", malo: "" },
+      { ok: false, t: "Con el procede del ticket, Renata lee la cuenta bancaria antes del mediodía.", malo: "Una desarrolladora queda con el dato de pago de todos los clientes, y un comentario queda como autorización." },
+      { ok: false, t: "Pilar abre la tabla, y la cuenta se esconde después de armar el reporte.", malo: "El privilegio de más ya se concedió. La vista tenía que existir antes de la consulta." },
+      { ok: false, t: "Se niega todo acceso: sin la tabla completa no hay reporte posible.", malo: "El reporte necesita ruta, ciudad y cliente. No la cuenta bancaria. Negar la vista deja el jueves sin cifra." }
+    ]
+  },
+  {
+    corto: "AC-03",
+    titulo: "10:20 · AC-03 La descarga de la 01:40",
+    voz: "Óscar recibió el aviso. El supervisor pide exceptuar la noche. Valeria clasifica el valor declarado.",
+    escena: "A la 01:40 la clave turno.noche descargó la lista de despachos con valor declarado alto. El sistema avisó a Óscar. A las 10:20 el supervisor dice que fue el control de ruta de todas las noches, y pide que la alerta no suene entre las 00:00 y las 06:00.",
+    pregunta: "¿Callamos la alerta de noche porque ese control de ruta ocurre siempre?",
+    porque: "Que el trabajo sea habitual no lo vuelve invisible. La alerta sigue. La descarga de la 01:40 queda anotada. Si el control de ruta es necesario, pasa a una cuenta de servicio justificada, no a la clave de las personas.",
+    opciones: [
+      { ok: true, t: "La alerta sigue. La descarga queda anotada. El control de ruta pasa a una cuenta de servicio justificada.", malo: "" },
+      { ok: false, t: "Se apaga la alerta de noche: el supervisor ya explicó el control de ruta.", malo: "La próxima descarga de esa lista, a esa hora, no le avisa a nadie." },
+      { ok: false, t: "Se bloquea todo acceso nocturno, incluido el despacho que sí tiene que salir.", malo: "La carga de la noche no se detiene. Lo que sobra es la clave compartida, no el turno." },
+      { ok: false, t: "Basta la foto de fin de mes: la alerta en el momento sobra.", malo: "La foto muestra la tendencia. No avisa la descarga de esta noche." }
+    ]
+  },
+  {
+    corto: "AC-04",
+    titulo: "11:15 · AC-04 Tres usuarios, un conductor",
+    voz: "Óscar centraliza. Julio se queda con una cuenta y un rol.",
+    escena: "Julio Campos, conductor, existe tres veces: julio.campos en el correo, JCcampos en la app de Lima, y también entra por turno.noche. Los privilegios no coinciden. El técnico de Lima quiere corregir solo su almacén, porque los otros 14 son de socios.",
+    pregunta: "¿Corregimos solo Lima y dejamos las otras identidades como están?",
+    porque: "Son tres versiones de la misma persona, y la clave compartida no dice quién entró en ningún almacén. La identidad se administra en un solo lugar. turno.noche se cierra en los 15.",
+    opciones: [
+      { ok: true, t: "Julio se queda con una cuenta y un rol. turno.noche se cierra en los 15 almacenes.", malo: "" },
+      { ok: false, t: "Se corrige solo Lima. Los almacenes de los socios pueden esperar.", malo: "Mañana cada sede tiene su propia versión de Julio, y la clave del turno sigue sin decir quién entró." },
+      { ok: false, t: "Se dejan las tres cuentas y se anota en un papel cuál está vigente.", malo: "El papel no impide el ingreso. Las tres versiones siguen vivas en los sistemas." },
+      { ok: false, t: "Se borra a Julio de todos los sistemas hasta el jueves.", malo: "El conductor necesita trabajar. Lo que sobra son las cuentas de más, no la persona." }
+    ]
+  },
+  {
+    corto: "AC-05",
+    titulo: "14:00 · AC-05 Tres registros, ¿un cliente?",
+    voz: "Valeria confirma con el RUC. Joaquín deja escrito el cruce.",
+    escena: "Joaquín quiere saber si los mismos clientes despachan por más de un almacén. Inversiones del Sur sale tres veces: dos con el mismo RUC y una con otro RUC, en Arequipa. Finanzas pide quedarse con el registro que más facturó y borrar los otros dos, para que el indicador de clientes repetidos suba.",
+    pregunta: "¿Nos quedamos con el registro que más facturó y borramos los otros dos?",
+    porque: "El nombre comercial no alcanza, y el indicador no elige el maestro. Los dos del mismo RUC apuntan a una empresa. El de Arequipa puede ser otra. Borrar cualquiera borra despachos. Valeria confirma. Joaquín deja escrito por qué se unieron, y por qué el tercero no.",
+    opciones: [
+      { ok: true, t: "Valeria confirma con el RUC. Se unen solo los dos iguales. El de Arequipa se queda aparte. No se borra historia.", malo: "" },
+      { ok: false, t: "Se borra todo menos el que más facturó, para que el indicador suba.", malo: "La cifra queda más linda y la historia de despachos desaparece. El maestro lo eligió el indicador, no el documento." },
+      { ok: false, t: "Se unen los tres porque el nombre comercial se parece.", malo: "El RUC de Arequipa es otro. Pueden ser dos empresas. El reporte las contaría como una." },
+      { ok: false, t: "Se deja el triple conteo y el jueves se aclara a viva voz.", malo: "La cifra de clientes repetidos nace mal, y Valeria no tiene un maestro que sostener." }
+    ]
+  },
+  {
+    corto: "AC-06",
+    titulo: "15:10 · AC-06 Tres nombres, una ruta",
+    voz: "Valeria publica ruta y tipo de carga. Joaquín no reporta antes.",
+    escena: "En la pantalla de despacho la ruta se llama Lima–Arequipa. En el tarifario, LIM-AQP. En el almacén de Cusco, Sur 2. El tipo de carga es Frío en operaciones, Frio en facturación y Perecible en Arequipa. Renata quiere armar el ranking con el nombre de la pantalla.",
+    pregunta: "¿Armamos el ranking de junio con el nombre de la pantalla, Lima–Arequipa?",
+    porque: "Es la misma ruta escrita de tres maneras. Ruta es maestro. Tipo de carga es una sola lista. Frío, Frio y Perecible no pueden convivir. Sin las dos listas de Valeria, Joaquín no puede reportar.",
+    opciones: [
+      { ok: true, t: "Una lista de rutas y una de tipos de carga, las que publique Valeria.", malo: "" },
+      { ok: false, t: "Se rankea con Lima–Arequipa, porque es el nombre que ve quien despacha.", malo: "La misma ruta cuenta varias veces, y el tipo de carga se parte en tres." },
+      { ok: false, t: "Se suman Frío, Frio y Perecible: así no se pierde ninguna tonelada.", malo: "Tres escrituras no son tres tipos. La suma parte el ranking." },
+      { ok: false, t: "Cada almacén publica su lista y el jueves se promedia.", malo: "Promediar tres vocabularios no da una versión de la verdad." }
+    ]
+  },
+  {
+    corto: "AC-07",
+    titulo: "17:00 · AC-07 La base que despacha",
+    voz: "Miguel pide el reporte. Los camiones siguen saliendo.",
+    escena: "Son las cinco de la tarde y salen los camiones de los 15 almacenes. Miguel le pide a Joaquín el reporte de junio ahora, sobre la base de despacho. Infraestructura dice que el servidor está arriba y respondiendo.",
+    pregunta: "¿Sacamos el reporte de junio sobre la base de despacho, a las 17:00?",
+    porque: "Que el servidor responda no lo deja libre para una pregunta de un mes. Esa base existe para despachar la carga de hoy. El reporte va a un almacén.",
+    opciones: [
+      { ok: true, t: "El reporte va a un almacén. La base de despacho sigue para la carga que sale hoy.", malo: "" },
+      { ok: false, t: "Se consulta el despacho ahora: el servidor está arriba.", malo: "Una pregunta de 15 almacenes y un mes puede frenar la salida de los camiones." },
+      { ok: false, t: "Se detiene el despacho una hora para que el reporte entre.", malo: "La carga de hoy no se detiene por una cifra del jueves. Hay otra base para eso." },
+      { ok: false, t: "Se calcula en el despacho de madrugada y se pisa la carga del día.", malo: "El despacho guarda el presente. El reporte necesita historia, y no reescribe la salida." }
+    ]
+  },
+  {
+    corto: "AC-08",
+    titulo: "17:40 · AC-08 La carpeta de los 15 almacenes",
+    voz: "Joaquín arma la pregunta. Pilar y Renata preparan la carga.",
+    escena: "El directorio quiere toneladas por ruta, por ciudad y por mes. En el chat dicen que Inmon obliga a juntar todo, y proponen copiar esta noche las 15 bases a una carpeta y llamarla data warehouse.",
+    pregunta: "¿Copiamos las 15 bases y a esa carpeta le llamamos data warehouse?",
+    porque: "Juntar archivos no es integrar. Inmon pide una definición coherente, historia y tema, no una copia del despacho. Para el jueves basta una estrella: el despacho al centro, y ruta, almacén y tiempo alrededor, con las listas de Valeria. En tablas, ese cruce es ROLAP.",
+    opciones: [
+      { ok: true, t: "Se carga una estrella: despacho, ruta, almacén y tiempo, con las listas de Valeria.", malo: "" },
+      { ok: false, t: "Se copian las 15 bases a una carpeta: Inmon pide juntar todo.", malo: "Siguen siendo 15 versiones de la misma ruta. Lima y LIM no suman. Integrar no es copiar." },
+      { ok: false, t: "Se elige Inmon o Kimball en el chat, y la copia espera a esa elección.", malo: "La pregunta del jueves ya está. No hace falta el almacén de toda la empresa para responderla." },
+      { ok: false, t: "Se arma un cubo en una base multidimensional: sin eso no hay cruce.", malo: "Cruzar ruta, ciudad y mes cabe en tablas. Esa forma se llama ROLAP." }
+    ]
+  },
+  {
+    corto: "AC-09",
+    titulo: "18:10 · AC-09 Toda la empresa, este fin de semana",
+    voz: "Miguel puede respaldar las tres cifras de junio. Valeria no está liberada a las 18:00.",
+    escena: "Gerencia general escribe: armen este fin de semana el data warehouse de toda la empresa. Lo puede hacer el practicante, que ya usa Power BI. El presupuesto se ve el lunes.",
+    pregunta: "¿Empezamos este fin de semana el almacén de todos los datos, a cargo del practicante?",
+    porque: "Sin patrocinio, alcance o quien conoce el negocio, el proyecto se detiene. El jueves solo caben las tres cifras de junio. Miguel las respalda, con límite. Valeria dice qué es un cliente y qué es una ruta. El practicante no es dueño de ese significado.",
+    opciones: [
+      { ok: true, t: "Solo las tres cifras de junio, con patrocinio de Miguel y con Valeria en el significado.", malo: "" },
+      { ok: false, t: "Se empieza ya, con todos los datos, y el presupuesto se ve el lunes.", malo: "No hay límite ni responsable. El almacén crece sin una pregunta que responder." },
+      { ok: false, t: "Lo arma el practicante: él ya arma tableros en Power BI.", malo: "Saber mostrar un tablero no es saber qué es un cliente. Ese papel es de Valeria." },
+      { ok: false, t: "Se espera al mes siguiente y el jueves se cancela la reunión.", malo: "La pregunta del jueves sí cabe. Lo que no cabe es toda la empresa en un fin de semana." }
+    ]
+  },
+  {
+    corto: "AC-10",
+    titulo: "08:20 · AC-10 El archivo ya está",
+    voz: "Pilar y Óscar ejecutaron. Valeria firma. Miguel aprueba. Renata no firma.",
+    escena: "Los almacenes ya despachan. El reporte está en un archivo de Joaquín y a las 09:00 entra el directorio. La mesa de ayuda quiere cerrar AC-01 a AC-09 porque el archivo ya existe.",
+    pregunta: "¿Cerramos las decisiones porque el archivo del reporte ya está?",
+    porque: "Un archivo no dice quién autorizó, ni con qué cliente y qué ruta se armó la cifra. Óscar y Pilar dejan hecha la ejecución. Valeria firma lo que tiene que poder sostener. Joaquín documenta el origen. Renata pidió el acceso: no lo custodia. Miguel aprueba.",
+    opciones: [
+      { ok: true, t: "Óscar y Pilar dejan hecha la ejecución. Valeria firma. Miguel aprueba. Joaquín documenta.", malo: "" },
+      { ok: false, t: "Se cierran las decisiones: el archivo ya está y la reunión va a empezar.", malo: "Nadie podría decir quién autorizó el acceso, si Inversiones del Sur es una sola, ni qué lista de rutas se usó." },
+      { ok: false, t: "Firma solo Renata: ella pidió el acceso y preparó la carga.", malo: "Quien pide no custodia. Renata no se autoriza sola." },
+      { ok: false, t: "Firma solo Joaquín: el archivo es suyo y con eso basta.", malo: "Joaquín deja el origen. No aprueba el acceso ni el alcance, y no firma los maestros." }
+    ]
+  }
+];
+
+const $ = s => document.querySelector(s);
+const state = { i: 0, phase: "talk", deck: [], locked: [], misses: [], timer: null, left: 90, used: {} };
+
+function shuffle(list) {
+  const a = list.map((item, n) => ({ ...item, n }));
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+function paintRail() {
+  const rail = $("#rail");
+  rail.innerHTML = "";
+  PIEZAS.forEach((p, i) => {
+    const d = document.createElement("div");
+    d.className = "slot" + (state.locked.includes(i) ? " on" : "") + (i === state.i && !state.locked.includes(i) ? " now" : "");
+    d.innerHTML = '<span class="n">PIEZA ' + (i + 1) + '</span><span class="t">' + (state.locked.includes(i) ? p.corto : (i === state.i ? p.corto : "····")) + "</span>";
+    rail.appendChild(d);
+  });
+}
+
+function stopTimer() {
+  if (state.timer) clearInterval(state.timer);
+  state.timer = null;
+}
+
+function tick() {
+  const c = $("#clock");
+  const m = Math.floor(state.left / 60);
+  const s = String(state.left % 60).padStart(2, "0");
+  c.textContent = m + ":" + s;
+  c.classList.toggle("hot", state.left <= 10);
+  if (state.left <= 0) {
+    stopTimer();
+    c.textContent = "Tiempo";
+  }
+}
+
+function render() {
+  const p = PIEZAS[state.i];
+  $("#paso").textContent = "Pieza " + (state.i + 1) + " de " + PIEZAS.length;
+  $("#titulo").textContent = p.titulo;
+  $("#escena").textContent = p.escena;
+  $("#voz").textContent = p.voz;
+  $("#pregunta").textContent = p.pregunta;
+  paintRail();
+  $("#faseTalk").hidden = state.phase !== "talk";
+  $("#faseChoose").hidden = state.phase === "talk";
+  $("#faseNext").hidden = state.phase !== "result";
+  $("#feedback").hidden = state.phase !== "result";
+  $("#btnRetry").hidden = true;
+  $("#btnLock").hidden = true;
+  if (state.phase === "talk") {
+    stopTimer();
+    state.left = 90;
+    $("#clock").hidden = true;
+    $("#clock").classList.remove("hot");
+  }
+  if (state.phase === "choose") {
+    const box = $("#opts");
+    box.innerHTML = "";
+    state.deck.forEach((op, idx) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.innerHTML = '<span class="key">' + (idx + 1) + "</span>" + op.t;
+      const used = state.used[state.i] && state.used[state.i][op.t];
+      if (used) {
+        b.disabled = true;
+        b.classList.add("dim", "bad");
+      }
+      b.addEventListener("click", () => choose(idx));
+      box.appendChild(b);
+    });
+  }
+}
+
+function choose(idx) {
+  if (state.phase !== "choose") return;
+  const op = state.deck[idx];
+  const buttons = [...document.querySelectorAll(".opt")];
+  buttons.forEach(b => { b.disabled = true; });
+  state.phase = "result";
+  const fb = $("#feedback");
+  fb.hidden = false;
+  $("#faseNext").hidden = false;
+  if (op.ok) {
+    buttons[idx].classList.add("good");
+    fb.className = "feedback good";
+    fb.innerHTML = "<h3>La pieza encaja.</h3><p>" + PIEZAS[state.i].porque + "</p>";
+    $("#btnLock").hidden = false;
+  } else {
+    buttons[idx].classList.add("bad");
+    buttons.forEach((b, i) => { if (i !== idx) b.classList.add("dim"); });
+    fb.className = "feedback bad";
+    fb.innerHTML = "<h3>Esa salida no sostiene el jueves.</h3><p>" + op.malo + "</p>";
+    if (!state.used[state.i]) state.used[state.i] = {};
+    state.used[state.i][op.t] = true;
+    state.misses.push({ pieza: PIEZAS[state.i].corto, texto: op.t, malo: op.malo });
+    $("#btnRetry").hidden = false;
+  }
+}
+
+function lock() {
+  state.locked.push(state.i);
+  if (state.i === PIEZAS.length - 1) {
+    finish();
+    return;
+  }
+  state.i += 1;
+  state.phase = "talk";
+  state.deck = shuffle(PIEZAS[state.i].opciones);
+  render();
+}
+
+function finish() {
+  stopTimer();
+  show("#sEnd");
+  const plan = $("#plan");
+  plan.innerHTML = "";
+  const frases = [
+    "AC-01. Se cierra turno.noche. Una clave por persona. Las guías que salieron se registran, no se borran del chat en silencio.",
+    "AC-02. Renata no recibe la cuenta bancaria. Pilar crea una vista sin ese dato. Miguel aprueba.",
+    "AC-03. La alerta de la 01:40 no se apaga de noche. La descarga queda anotada. El trabajo de ruta pasa a una cuenta de servicio justificada.",
+    "AC-04. Julio se queda con una identidad. La clave del turno se cierra en los 15 almacenes.",
+    "AC-05. No se elige el registro que más factura. Valeria confirma con el RUC. El tercero puede ser otra empresa.",
+    "AC-06. El reporte no usa el nombre de la pantalla. Una lista de rutas y una de tipos de carga.",
+    "AC-07. El reporte de junio no se calcula en la base de despacho a las 17:00.",
+    "AC-08. No se copian los 15 almacenes. Se carga una estrella: despacho, ruta, almacén y tiempo.",
+    "AC-09. No empieza toda la empresa. Solo las tres cifras de junio, con patrocinio y con Valeria.",
+    "AC-10. Óscar y Pilar ejecutan. Valeria firma. Joaquín documenta. Renata no firma. Miguel aprueba."
+  ];
+  frases.forEach(f => {
+    const li = document.createElement("li");
+    li.textContent = f;
+    plan.appendChild(li);
+  });
+  const box = $("#fixes");
+  if (!state.misses.length) {
+    box.innerHTML = "<p>Las diez piezas quedaron en la primera decisión.</p>";
+  } else {
+    box.innerHTML = "";
+    state.misses.forEach(m => {
+      const d = document.createElement("div");
+      d.className = "fix";
+      d.innerHTML = "<b>" + m.pieza + ".</b> " + m.malo;
+      box.appendChild(d);
+    });
+  }
+}
+
+$("#btnGo").addEventListener("click", () => {
+  state.i = 0;
+  state.phase = "talk";
+  state.locked = [];
+  state.misses = [];
+  state.used = {};
+  state.deck = shuffle(PIEZAS[0].opciones);
+  show("#sPlay");
+  render();
+});
+
+$("#btnTimer").addEventListener("click", () => {
+  stopTimer();
+  state.left = 90;
+  $("#clock").hidden = false;
+  tick();
+  state.timer = setInterval(() => {
+    state.left -= 1;
+    tick();
+  }, 1000);
+});
+
+$("#btnOpts").addEventListener("click", () => {
+  stopTimer();
+  $("#clock").hidden = true;
+  state.phase = "choose";
+  render();
+});
+
+$("#btnRetry").addEventListener("click", () => {
+  state.phase = "choose";
+  render();
+});
+
+$("#btnLock").addEventListener("click", lock);
+
+$("#btnRestart").addEventListener("click", () => show("#sStart"));
+
+document.addEventListener("keydown", (e) => {
+  if (state.phase !== "choose") return;
+  const n = Number(e.key);
+  if (n >= 1 && n <= 4) {
+    const btn = document.querySelectorAll(".opt")[n - 1];
+    if (btn && !btn.disabled) btn.click();
+  }
+});
+</script>
+</body>
+</html>

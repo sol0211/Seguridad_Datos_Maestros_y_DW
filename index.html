@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AndesCargo. Quién entra, y con qué versión se decide</title>
+<style>
+  :root {
+    --ink: #262626;
+    --muted: #595959;
+    --navy: #333f4f;
+    --green: #70ad47;
+    --green-d: #548235;
+    --bg: #eef2f7;
+    --line: #d5deea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: Calibri, "Segoe UI", sans-serif;
+    color: #fff;
+    background:
+      radial-gradient(900px 480px at 0% -10%, rgba(112, 173, 71, .35), transparent 55%),
+      radial-gradient(800px 420px at 100% 0%, rgba(19, 104, 206, .28), transparent 50%),
+      var(--navy);
+  }
+  button, input { font-family: inherit; }
+  #app { max-width: 980px; margin: 0 auto; padding: 18px 16px 28px; min-height: 100vh; }
+  .screen { display: none; }
+  .screen.active { display: block; animation: rise .28s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.02; margin: 8px 0 10px; letter-spacing: -.03em; }
+  .kicker {
+    display: inline-block; margin: 0;
+    background: rgba(255,255,255,.14); color: #fff;
+    font-weight: 700; font-size: .92rem;
+    padding: 4px 12px; border-radius: 999px;
+  }
+  .lead { font-size: 1.2rem; margin: 0 0 16px; max-width: 40rem; }
+  .card {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 18px;
+    padding: 16px;
+  }
+  label { display: block; font-weight: 700; margin-bottom: 6px; }
+  input[type="text"] {
+    width: 100%; max-width: 420px;
+    border: 0; border-radius: 12px;
+    padding: 14px 14px; font-size: 1.15rem; color: var(--ink);
+  }
+  .rules { margin: 8px 0 0; padding-left: 1.1rem; }
+  .rules li { margin: 4px 0; }
+  .aviso {
+    margin: 12px 0 0; font-weight: 700; color: #ffd0d6;
+  }
+  .btn {
+    border: 0; border-radius: 14px; cursor: pointer; font-weight: 800;
+    padding: 14px 22px; font-size: 1.15rem;
+  }
+  a.btn { display: inline-block; text-decoration: none; text-align: center; }
+  .btn:focus-visible, .opt:focus-visible, input:focus-visible {
+    outline: 3px solid #fff; outline-offset: 3px;
+  }
+  .btn-main { background: var(--green); color: #fff; box-shadow: 0 4px 0 var(--green-d); }
+  .btn-main:hover { filter: brightness(1.06); }
+  .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--green-d); }
+  .btn-ghost { background: rgba(255,255,255,.14); color: #fff; }
+  .top {
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+    margin-bottom: 10px;
+  }
+  .meta { font-weight: 800; font-size: 1.05rem; }
+  .score {
+    background: #fff; color: var(--navy);
+    border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: 1.15rem;
+    min-width: 92px; text-align: center;
+  }
+  .score.pop { animation: pop .35s ease; }
+  @keyframes pop { 50% { transform: scale(1.12); } }
+  .pips { display: flex; gap: 5px; margin: 8px 0 10px; }
+  .pip { height: 8px; flex: 1; border-radius: 99px; background: rgba(255,255,255,.2); }
+  .pip.done { background: rgba(255,255,255,.55); }
+  .pip.now { background: #fff; }
+  .timer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .clock {
+    width: 54px; height: 54px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: #fff; color: var(--navy);
+    font-weight: 800; font-size: 1.35rem; flex: none;
+  }
+  .clock.danger { background: #e21b3c; color: #fff; animation: pulse .6s ease infinite; }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  .track { flex: 1; height: 14px; border-radius: 99px; background: rgba(255,255,255,.2); overflow: hidden; }
+  .bar { height: 100%; width: 100%; background: var(--green); transform-origin: left center; }
+  .bar.danger { background: #e21b3c; }
+  .question {
+    background: #fff; color: var(--navy);
+    border-radius: 18px; padding: 18px 18px 16px;
+    min-height: 108px; margin-bottom: 12px;
+    font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+    font-weight: 800; line-height: 1.25;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+  .opt {
+    position: relative;
+    border: 0; border-radius: 14px; color: #fff;
+    text-align: left; cursor: pointer;
+    min-height: 92px; padding: 16px 16px 16px 58px;
+    font-size: 1.05rem; font-weight: 700; line-height: 1.3;
+  }
+  .opt .shape {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    background: #fff; color: var(--navy);
+    border-radius: 6px; font-weight: 800; font-size: 1rem;
+  }
+  .opt[data-i="0"] { background: #e21b3c; }
+  .opt[data-i="1"] { background: #1368ce; }
+  .opt[data-i="2"] { background: #ffa602; color: #3a2a00; }
+  .opt[data-i="3"] { background: #26890c; }
+  .opt:hover:not(:disabled) { filter: brightness(1.08); }
+  .opt:disabled { cursor: default; }
+  .opt.dim { filter: grayscale(.35) brightness(.72); }
+  .opt.good { box-shadow: inset 0 0 0 4px #fff; filter: none; }
+  .opt.bad { box-shadow: inset 0 0 0 4px #3a1020; animation: shake .35s linear; }
+  @keyframes shake {
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+  .feedback {
+    margin-top: 12px; background: #fff; color: var(--navy);
+    border-radius: 16px; padding: 12px 14px;
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  }
+  .feedback b { font-size: 1.35rem; }
+  .delta.plus { color: var(--green-d); }
+  .delta.minus { color: #b94b5c; }
+  .delta.zero { color: var(--muted); }
+  .why { margin: 4px 0 0; color: var(--muted); font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .big-score { font-size: clamp(3rem, 8vw, 5rem); font-weight: 800; line-height: 1; margin: 8px 0; }
+  .review { margin-top: 14px; }
+  .item {
+    background: rgba(255,255,255,.08);
+    border-radius: 12px; padding: 10px 12px; margin: 8px 0;
+  }
+  .item .q { font-weight: 800; }
+  .ok { color: #c6e0b4; }
+  .no { color: #ffc1c8; }
+  .count {
+    position: fixed; inset: 0; display: none;
+    place-items: center; background: rgba(51, 63, 79, .55);
+    font-size: 8rem; font-weight: 800;
+  }
+  .count.show { display: grid; animation: rise .2s ease; }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="home" class="screen active">
+    <p class="kicker">Unidades VII y VIII · Clases 11 y 12 · Otro caso</p>
+    <h1>Quién entra, y con qué versión se decide</h1>
+    <p class="lead">Diez preguntas de AndesCargo, un operador logístico con 15 almacenes. Hay que aplicar la clase: el largo de las respuestas no delata cuál es.</p>
+    <div class="card">
+      <label for="apellido">Tu apellido</label>
+      <input id="apellido" type="text" maxlength="40" placeholder="Escribe tu apellido" autocomplete="family-name">
+      <p class="aviso" id="aviso" hidden></p>
+      <ul class="rules">
+        <li>Cada pregunta dura 20 segundos. El juego sigue solo.</li>
+        <li>Cada apellido juega una sola vez.</li>
+        <li>Acierto: de 500 a 1000 puntos, según lo rápido que marques.</li>
+        <li>Error: se restan 300 puntos.</li>
+        <li>Si se acaba el tiempo, no suma ni resta.</li>
+      </ul>
+    </div>
+    <p class="row" style="margin-top:16px;">
+      <button type="button" class="btn btn-main" id="start">Jugar</button>
+      <a class="btn btn-ghost" href="index1.html">Ir al caso</a>
+    </p>
+  </section>
+
+  <section id="play" class="screen">
+    <div class="top">
+      <div class="meta" id="qcount">1 / 10</div>
+      <div class="score" id="score">0</div>
+    </div>
+    <div class="pips" id="pips"></div>
+    <div class="timer-row">
+      <div class="clock" id="clock">20</div>
+      <div class="track" aria-hidden="true"><div class="bar" id="bar"></div></div>
+    </div>
+    <div class="question" id="question"></div>
+    <div class="grid" id="options"></div>
+    <div id="feedback"></div>
+  </section>
+
+  <section id="end" class="screen">
+    <p class="kicker" id="end-name">AndesCargo</p>
+    <h1 id="end-title">Cierre de la consulta</h1>
+    <div class="big-score" id="end-score">0</div>
+    <p class="lead" id="end-detail"></p>
+    <p class="row">
+      <button type="button" class="btn btn-main" id="again">Otra ronda</button>
+      <button type="button" class="btn btn-ghost" id="toggle-review">Ver cómo te fue</button>
+    </p>
+    <div class="review" id="review" hidden></div>
+  </section>
+</div>
+<div class="count" id="count" aria-live="assertive"></div>
+<script>
+(function () {
+  var BANK = [
+    {
+      q: "En AndesCargo, tres personas del turno noche entran con la misma clave. Hoy no se sabe quién fotografió las guías. ¿Qué falla?",
+      options: [
+        "La autenticación: una clave compartida no dice quién es la persona.",
+        "La autorización: el privilegio del reporte ya estaba concedido.",
+        "El acceso: la vista del reporte no se abrió a la hora pedida.",
+        "La auditoría: el informe del mes ya comparó esa línea base."
+      ],
+      why: "Autenticar es validar quién es. Una clave compartida no lo dice."
+    },
+    {
+      q: "La clave del almacén es el nombre del turno, no caduca y la usan varias personas. ¿Qué pide la clase?",
+      options: [
+        "Una clave por persona, distinta del nombre, que caduque entre 45 y 60 días.",
+        "Dejar la clave del turno: si cada quien tiene la suya, el despacho se atrasa.",
+        "Aceptar la clave en blanco, porque el sistema ya conoce ese almacén.",
+        "Renovar cada dos años una clave igual al nombre de quien despacha."
+      ],
+      why: "La contraseña es de su dueño, no es el nombre, y caduca cada 45 a 60 días."
+    },
+    {
+      q: "A la una de la mañana descargaron la carga de alto valor y el sistema avisó. Piden sacar al turno noche de esa alerta. ¿Qué es?",
+      options: [
+        "Monitoreo activo: avisa en el momento y no se apaga para la próxima vez.",
+        "Monitoreo pasivo: una foto del mes, que no alcanza a frenar el evento.",
+        "El objetivo de control: nombra el resultado y no dice cuál es el medio.",
+        "Una auditoría anual, hecha por alguien de afuera, que ya quedó cerrada."
+      ],
+      why: "Lo activo avisa al momento. Sacar al turno de la alerta esconde la próxima descarga."
+    },
+    {
+      q: "El objetivo es revisar cada mes los privilegios. El técnico los compara con un comentario del ticket. ¿Dónde está el control?",
+      options: [
+        "En el medio: contrastar el permiso con la solicitud que sí se aprobó.",
+        "En el fin: el objetivo ya se cumplió porque alguien miró los permisos.",
+        "En la clave: con ocho caracteres, mayúscula y número, el control cierra.",
+        "En la vista: ocultar columnas basta, aunque el permiso siga de más."
+      ],
+      why: "El objetivo dice el resultado. El control es el medio: el permiso contra lo aprobado."
+    },
+    {
+      q: "El mismo conductor aparece en tres directorios y también entra con la clave del turno. ¿Qué se hace?",
+      options: [
+        "Una identidad central, un solo grupo, y se cierra la cuenta compartida.",
+        "Se corrige solo Lima: los otros almacenes pueden esperar al mes.",
+        "Se dejan las tres cuentas: así no se pierde ningún privilegio viejo.",
+        "Se pasa al conductor al modelo dimensional, como una dimensión más."
+      ],
+      why: "La identidad y el grupo se administran en un solo lugar. La cuenta compartida no se audita."
+    },
+    {
+      q: "La misma empresa sale con tres códigos. Finanzas quiere borrar los dos que menos facturaron. ¿Qué es ese cliente?",
+      options: [
+        "Dato maestro: una versión de la verdad, y borrar el código borra historia.",
+        "Dato referencial: una lista que se recorta para que el conteo no triplique.",
+        "Dato del despacho: el nombre parecido alcanza para dejar un solo código.",
+        "Hecho del cubo: los códigos chicos se resumen y se pueden purgar hoy."
+      ],
+      why: "El cliente es maestro. El nombre no basta, y borrar el código borra los despachos."
+    },
+    {
+      q: "La misma ruta tiene tres nombres y el tipo de carga se escribe de tres formas. ¿Qué se necesita para el reporte?",
+      options: [
+        "Un maestro de ruta y una sola lista de tipos de carga, compartida.",
+        "El nombre de la pantalla de despacho, que es el que el operador reconoce.",
+        "Un tipo de carga distinto por almacén, para no perder el detalle de cada uno.",
+        "Copiar las bases de todos los almacenes y unir el nombre después."
+      ],
+      why: "La ruta es maestro. El tipo de carga es referencial: una lista, una escritura."
+    },
+    {
+      q: "A las cinco de la tarde, en plena salida de camiones, piden el reporte de junio sobre la base que está despachando. ¿Dónde va?",
+      options: [
+        "A un almacén para decidir. La base de despacho existe para mover la carga de hoy.",
+        "Sobre el despacho: si el servidor responde, la consulta pesada ya cabe.",
+        "A un ODS, que es volátil y sirve para la decisión de varios años.",
+        "A una carpeta con la copia de cada almacén: eso ya es el data warehouse."
+      ],
+      why: "El despacho mueve la carga del día. El reporte vive en un almacén integrado, con historia."
+    },
+    {
+      q: "Quieren copiar las bases de los 15 almacenes y llamar a esa carpeta data warehouse. La pregunta cruza ruta, ciudad y mes. ¿Qué presenta Kimball?",
+      options: [
+        "Una estrella: el despacho al centro, y ruta, almacén y tiempo alrededor.",
+        "Una copia fiel de cada almacén, ordenada por la aplicación de esa sede.",
+        "Un operativo que se reescribe cada hora, para no perder la carga del día.",
+        "Un cubo solo en base multidimensional: sin eso no hay cruce posible."
+      ],
+      why: "Copiar no integra. Kimball presenta la pregunta en estrella. En tablas, ese cubo es ROLAP."
+    },
+    {
+      q: "Piden armar este fin de semana el almacén de toda la empresa, sin presupuesto, y que lo haga quien no define qué es un cliente. ¿Qué detiene el proyecto?",
+      options: [
+        "Faltan patrocinio con límite, un alcance claro y quien conoce el negocio.",
+        "Falta solo disco: con un servidor nuevo el almacén puede arrancar ya.",
+        "Falta la copia del viernes: si la carpeta existe, el patrocinio ya está.",
+        "Falta apagar las alertas, porque el ruido impide cargar los datos."
+      ],
+      why: "Sin patrocinio, alcance y expertos del negocio, el proyecto no arranca."
+    }
+  ];
+
+  var PENALTY = 300;
+  var totalSec = 20;
+  var LETTERS = ["A", "B", "C", "D"];
+  var STORE = "ged-andescargo-quiz";
+  var pace = "auto";
+  var name = "Jugador";
+  var score = 0;
+  var index = 0;
+  var round = null;
+  var raf = 0;
+  var startedAt = 0;
+  var locked = false;
+  var advanceTimer = 0;
+  var log = [];
+  var audioCtx = null;
+  var soundOn = true;
+
+  var home = document.getElementById("home");
+  var play = document.getElementById("play");
+  var end = document.getElementById("end");
+  var count = document.getElementById("count");
+
+  function show(el) {
+    [home, play, end].forEach(function (s) { s.classList.remove("active"); });
+    el.classList.add("active");
+  }
+
+  function tone(freq, dur, type) {
+    if (!soundOn) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = type || "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.07, audioCtx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + dur);
+    } catch (e) {}
+  }
+
+  function surnameKey(value) {
+    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+
+  function playedKeys() {
+    try {
+      var raw = localStorage.getItem(STORE);
+      var list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function remember(key) {
+    var list = playedKeys();
+    if (list.indexOf(key) === -1) list.push(key);
+    localStorage.setItem(STORE, JSON.stringify(list));
+  }
+
+  function say(text) {
+    var aviso = document.getElementById("aviso");
+    aviso.hidden = !text;
+    aviso.textContent = text || "";
+  }
+
+  document.getElementById("start").addEventListener("click", begin);
+  document.getElementById("apellido").addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") begin();
+  });
+  document.getElementById("again").addEventListener("click", function () {
+    show(home);
+    var raw = document.getElementById("apellido").value.replace(/\s+/g, " ").trim();
+    if (raw && playedKeys().indexOf(surnameKey(raw)) !== -1) {
+      say("Ese apellido ya jugó. Cada apellido entra una sola vez.");
+    }
+  });
+  document.getElementById("toggle-review").addEventListener("click", function () {
+    var box = document.getElementById("review");
+    box.hidden = !box.hidden;
+    this.textContent = box.hidden ? "Ver cómo te fue" : "Ocultar el detalle";
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (!play.classList.contains("active") || locked) return;
+    var n = { "1": 0, "2": 1, "3": 2, "4": 3 }[ev.key];
+    if (n === undefined) return;
+    var btn = document.querySelector('.opt[data-i="' + n + '"]');
+    if (btn) btn.click();
+  });
+
+  function begin() {
+    var raw = document.getElementById("apellido").value.replace(/\s+/g, " ").trim();
+    if (!raw) {
+      say("Escribe tu apellido para entrar.");
+      document.getElementById("apellido").focus();
+      return;
+    }
+    var key = surnameKey(raw);
+    if (playedKeys().indexOf(key) !== -1) {
+      say("Ese apellido ya jugó. Cada apellido entra una sola vez.");
+      return;
+    }
+    try { remember(key); } catch (e) {}
+    say("");
+    name = raw;
+    score = 0;
+    index = 0;
+    log = [];
+    tone(523, 0.12);
+    countdown(function () { show(play); ask(); });
+  }
+
+  function countdown(done) {
+    var n = 3;
+    count.classList.add("show");
+    count.textContent = String(n);
+    tone(440, 0.08);
+    var t = setInterval(function () {
+      n -= 1;
+      if (n <= 0) {
+        clearInterval(t);
+        count.classList.remove("show");
+        done();
+      } else {
+        count.textContent = String(n);
+        tone(440, 0.08);
+      }
+    }, 650);
+  }
+
+  function shuffle(options) {
+    var items = options.map(function (text, i) { return { text: text, ok: i === 0 }; });
+    for (var i = items.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = items[i];
+      items[i] = items[j];
+      items[j] = tmp;
+    }
+    return items;
+  }
+
+  function ask() {
+    locked = false;
+    clearTimeout(advanceTimer);
+    cancelAnimationFrame(raf);
+    var item = BANK[index];
+    round = shuffle(item.options);
+    document.getElementById("qcount").textContent = (index + 1) + " / " + BANK.length;
+    document.getElementById("question").textContent = item.q;
+    document.getElementById("feedback").innerHTML = "";
+    paintScore(false);
+    var pips = document.getElementById("pips");
+    pips.innerHTML = "";
+    BANK.forEach(function (_, i) {
+      var d = document.createElement("div");
+      d.className = "pip" + (i < index ? " done" : i === index ? " now" : "");
+      pips.appendChild(d);
+    });
+    var box = document.getElementById("options");
+    box.innerHTML = "";
+    round.forEach(function (opt, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.setAttribute("data-i", String(i));
+      b.innerHTML = '<span class="shape" aria-hidden="true">' + LETTERS[i] + '</span>' + opt.text;
+      b.addEventListener("click", function () { choose(i); });
+      box.appendChild(b);
+    });
+    startedAt = performance.now();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function timeLeft(now) {
+    return totalSec - (now - startedAt) / 1000;
+  }
+
+  function tick(now) {
+    var left = timeLeft(now);
+    if (left <= 0) {
+      paintTime(0);
+      finish(null);
+      return;
+    }
+    paintTime(left);
+    raf = requestAnimationFrame(tick);
+  }
+
+  function paintTime(left) {
+    var ratio = Math.max(0, left) / totalSec;
+    var sec = Math.ceil(Math.max(0, left));
+    var clock = document.getElementById("clock");
+    var bar = document.getElementById("bar");
+    clock.textContent = String(sec);
+    clock.classList.toggle("danger", left <= 5 && left > 0);
+    bar.style.transform = "scaleX(" + ratio + ")";
+    bar.classList.toggle("danger", left <= 5);
+  }
+
+  function choose(i) {
+    if (locked) return;
+    finish(i);
+  }
+
+  function finish(picked) {
+    if (locked) return;
+    locked = true;
+    cancelAnimationFrame(raf);
+    var left = picked === null ? 0 : Math.max(0, timeLeft(performance.now()));
+    var correctIndex = -1;
+    round.forEach(function (opt, i) { if (opt.ok) correctIndex = i; });
+    var hit = picked !== null && round[picked].ok;
+    var delta = 0;
+    var label = "Se acabó el tiempo";
+    if (picked === null) {
+      tone(196, 0.25, "triangle");
+    } else if (hit) {
+      delta = Math.round(500 + 500 * (left / totalSec));
+      label = "Correcto";
+      tone(523, 0.09);
+      setTimeout(function () { tone(659, 0.14); }, 90);
+    } else {
+      delta = -PENALTY;
+      label = "Incorrecto";
+      tone(164, 0.22, "sawtooth");
+    }
+    score += delta;
+    paintScore(true);
+    document.querySelectorAll(".opt").forEach(function (b, i) {
+      b.disabled = true;
+      if (hit && i === picked) b.classList.add("good");
+      else if (picked !== null && i === picked) b.classList.add("bad");
+      else b.classList.add("dim");
+    });
+    var cls = delta > 0 ? "plus" : delta < 0 ? "minus" : "zero";
+    var sign = delta > 0 ? "+" : "";
+    var why = hit ? '<p class="why">' + BANK[index].why + '</p>' : "";
+    document.getElementById("feedback").innerHTML =
+      '<div class="feedback"><div><b>' + label + '</b>' + why + '</div>' +
+      '<div class="delta ' + cls + '"><b>' + sign + delta + '</b></div></div>';
+    log.push({
+      q: BANK[index].q,
+      okText: round[correctIndex].text,
+      picked: picked === null ? "Sin respuesta" : round[picked].text,
+      hit: hit,
+      missed: picked === null,
+      delta: delta
+    });
+    advanceTimer = setTimeout(next, 2600);
+  }
+
+  function paintScore(pop) {
+    var el = document.getElementById("score");
+    el.textContent = String(score);
+    if (pop) {
+      el.classList.remove("pop");
+      void el.offsetWidth;
+      el.classList.add("pop");
+    }
+  }
+
+  function next() {
+    index += 1;
+    if (index >= BANK.length) finishGame();
+    else ask();
+  }
+
+  function finishGame() {
+    show(end);
+    tone(523, 0.1);
+    setTimeout(function () { tone(659, 0.1); }, 110);
+    setTimeout(function () { tone(784, 0.18); }, 220);
+    var hits = log.filter(function (r) { return r.hit; }).length;
+    var misses = log.filter(function (r) { return r.missed; }).length;
+    var wrong = log.length - hits - misses;
+    document.getElementById("end-name").textContent = name;
+    document.getElementById("end-score").textContent = String(score);
+    var title = "La consulta quedó abierta";
+    if (hits >= 9) title = "AndesCargo quedó listo para decidir";
+    else if (hits >= 6) title = "La consulta se sostuvo";
+    else if (hits >= 3) title = "Hubo apuro en AndesCargo";
+    document.getElementById("end-title").textContent = title;
+    document.getElementById("end-detail").textContent =
+      hits + " aciertos · " + wrong + " errores · " + misses + " sin responder";
+    var review = document.getElementById("review");
+    review.hidden = true;
+    document.getElementById("toggle-review").textContent = "Ver cómo te fue";
+    review.innerHTML = log.map(function (r, i) {
+      var mark = r.hit ? "Acierto" : r.missed ? "Tiempo" : "Error";
+      var cls = r.hit ? "ok" : "no";
+      return '<div class="item"><div class="q">' + (i + 1) + ". " + r.q + '</div>' +
+        '<div class="' + cls + '">' + mark + " (" + (r.delta > 0 ? "+" : "") + r.delta + ")</div>" +
+        (r.hit ? "" : "<div>Marcaste: " + r.picked + "</div><div>Iba: " + r.okText + "</div>") +
+        "</div>";
+    }).join("");
+  }
+})();
+</script>
+</body>
+</html>
